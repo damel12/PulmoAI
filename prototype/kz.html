@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulmoAI — Интерактивный тренажёр клинического мышления в пульмонологии</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        kzSky: '#00A3E0',
+                        kzSkyDark: '#0083B3',
+                        kzSkyLight: '#E6F6FC',
+                        kzGold: '#FFC72C',
+                        kzGoldDark: '#D9A314',
+                        kzGoldLight: '#FFF9E5',
+                        medicalDark: '#0F2027',
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        heading: ['Montserrat', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .ornament-divider {
+            height: 12px;
+            background-image: url("data:image/svg+xml,%3Csvg width='40' height='12' viewBox='0 0 40 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0C15 0 13 6 10 6C7 6 5 0 0 0V2C4 2 6 8 10 8C14 8 16 2 20 2C24 2 26 8 30 8C34 8 36 2 40 2V0C35 0 33 6 30 6C27 6 25 0 20 0Z' fill='%23FFC72C'/%3E%3C/svg%3E");
+            background-repeat: repeat-x;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.35); opacity: 0.3; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-marker {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #00A3E0;
+            border-radius: 4px;
+        }
+        .dicom-viewport {
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.15s ease-out;
+        }
+        .dicom-viewport:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased flex flex-col min-h-screen">
+    <div class="h-2 bg-gradient-to-r from-kzSky via-kzGold to-kzSky"></div>
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateTo('home')">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-kzSky to-kzSkyDark p-2.5 flex items-center justify-center text-white shadow-lg shadow-kzSky/30 relative overflow-hidden group">
+                        <i class="fa-solid font-bold text-2xl text-kzGold fa-lungs"></i>
+                        <div class="absolute -bottom-1 -right-1 opacity-20 group-hover:opacity-40 transition-opacity">
+                            <i class="fa-solid fa-sun text-kzGold text-xs"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-1">
+                            <span class="text-2xl font-extrabold font-heading tracking-tight text-slate-900">Pulmo<span class="text-kzSky">AI</span></span>
+                            <span class="bg-kzGold/20 text-kzGoldDark border border-kzGold/40 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">KZ</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 font-medium leading-none">Клинический тренажёр</p>
+                    </div>
+                </div>
+                <nav class="hidden md:flex items-center space-x-1 lg:space-x-2">
+                    <button onclick="navigateTo('home')" id="nav-home" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold text-kzSky bg-kzSkyLight transition-all">
+                        <i class="fa-solid fa-house mr-1.5 text-xs"></i> Главная
+                    </button>
+                    <button onclick="navigateTo('cases')" id="nav-cases" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-kzSky hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-stethoscope mr-1.5 text-xs"></i> Клинические кейсы
+                    </button>
+                    <button onclick="navigateTo('library')" id="nav-library" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-kzSky hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-book-medical mr-1.5 text-xs"></i> Библиотека
+                    </button>
+                    <button onclick="navigateTo('about')" id="nav-about" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-kzSky hover:bg-slate-50 transition-all">
+                        <i class="fa-solid fa-circle-info mr-1.5 text-xs"></i> О проекте
+                    </button>
+                </nav>
+                <div class="hidden sm:flex items-center space-x-3">
+                    <button onclick="startInteractiveCase()" class="bg-gradient-to-r from-kzSky to-kzSkyDark text-white px-5 py-2.5 rounded-xl font-semibold text-sm shadow-md shadow-kzSky/25 hover:shadow-lg hover:shadow-kzSky/40 hover:-translate-y-0.5 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-play text-kzGold text-xs"></i>
+                        <span>Начать кейс</span>
+                    </button>
+                    <div class="h-8 w-px bg-slate-200"></div>
+                    <div class="flex items-center space-x-2 pl-1 cursor-pointer">
+                        <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=120" alt="Врач" class="w-9 h-9 rounded-full object-cover border-2 border-kzGold shadow-sm">
+                        <div class="text-left hidden lg:block">
+                            <p class="text-xs font-bold text-slate-800 leading-tight">Д-р Аскаров А.</p>
+                            <p class="text-[10px] text-slate-500">Резидент-пульмонолог</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="p-2 rounded-lg text-slate-600 hover:text-kzSky hover:bg-slate-100">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="hidden md:hidden border-b border-slate-200 bg-white px-4 pt-2 pb-4 space-y-2">
+            <button onclick="navigateTo('home'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-kzSky bg-kzSkyLight">
+                <i class="fa-solid fa-house w-6"></i> Главная
+            </button>
+            <button onclick="navigateTo('cases'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">
+                <i class="fa-solid fa-stethoscope w-6"></i> Клинические кейсы
+            </button>
+            <button onclick="navigateTo('library'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">
+                <i class="fa-solid fa-book-medical w-6"></i> Библиотека
+            </button>
+            <button onclick="navigateTo('about'); toggleMobileMenu();" class="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-600">
+                <i class="fa-solid fa-circle-info w-6"></i> О проекте
+            </button>
+            <div class="pt-2">
+                <button onclick="startInteractiveCase(); toggleMobileMenu();" class="w-full bg-kzSky text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow text-center">
+                    <i class="fa-solid fa-play text-kzGold mr-2"></i>Начать кейс
+                </button>
+            </div>
+        </div>
+    </header>
+    <main class="flex-grow">
+        <section id="page-home" class="page-section">
+            <div class="relative overflow-hidden bg-gradient-to-b from-kzSkyLight/60 via-white to-slate-50 pt-12 pb-20">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                    <div class="grid lg:grid-cols-12 gap-12 items-center">
+                        <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+                            <div class="inline-flex items-center space-x-2 bg-kzGoldLight border border-kzGold/40 text-slate-800 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm">
+                                <span class="flex h-2 w-2 rounded-full bg-kzGold"></span>
+                                <span class="text-slate-700">Интерактивная платформенная медицина Казахстан</span>
+                            </div>
+                            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-heading text-slate-900 leading-tight tracking-tight">
+                                Интерактивный тренажёр <br class="hidden sm:inline">
+                                <span class="bg-clip-text text-transparent bg-gradient-to-r from-kzSkyDark via-kzSky to-sky-500">клинического мышления</span> <br>
+                                в пульмонологии
+                            </h1>
+                            <p class="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
+                                <span class="font-semibold text-slate-800">Решайте клинические случаи.</span> Анализируйте реальные рентген-снимки ОГК с интерактивной лупой и размеченными очагами. Учитесь принимать решения с ИИ-ментором.
+                            </p>
+                            <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+                                <button onclick="startInteractiveCase()" class="w-full sm:w-auto bg-gradient-to-r from-kzSky to-kzSkyDark text-white px-8 py-4 rounded-xl font-bold text-base shadow-lg shadow-kzSky/30 hover:shadow-xl hover:shadow-kzSky/40 hover:-translate-y-0.5 transition-all flex items-center justify-center space-x-3 group">
+                                    <i class="fa-solid fa-stethoscope text-kzGold text-lg group-hover:rotate-12 transition-transform"></i>
+                                    <span>Прайдите интерактивный кейс</span>
+                                    <i class="fa-solid fa-arrow-right text-xs text-white/80"></i>
+                                </button>
+                                <button onclick="navigateTo('cases')" class="w-full sm:w-auto bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-6 py-4 rounded-xl font-semibold text-base transition-all shadow-sm">
+                                    <i class="fa-solid fa-list-check mr-2 text-kzSky"></i>Все клинические случаи
+                                </button>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-5">
+                            <div class="bg-white p-5 sm:p-6 rounded-2xl shadow-xl border border-slate-100 relative group hover:shadow-2xl transition-all">
+                                <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-kzSky via-kzGold to-kzSky rounded-t-2xl"></div>
+                                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="w-3 h-3 rounded-full bg-red-500 inline-block animate-ping"></span>
+                                        <span class="text-xs font-bold text-red-600 tracking-wider uppercase">Демо-Кейс #104</span>
+                                    </div>
+                                    <span class="bg-kzSkyLight text-kzSkyDark text-xs font-bold px-2.5 py-1 rounded-md">CXR / Интерактивный Рентген</span>
+                                </div>
+                                <div class="space-y-4">
+                                    <div class="flex items-center space-x-4">
+                                        <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200" alt="Пациент" class="w-16 h-16 rounded-xl object-cover border-2 border-kzSky/30 shadow-sm">
+                                        <div>
+                                            <h3 class="font-bold text-slate-900 text-base">Алиева Н.М., 58 лет</h3>
+                                            <p class="text-xs text-slate-500">Жалобы: Прогрессирующая одышка, острая боль в груди справа, сухой кашель.</p>
+                                        </div>
+                                    </div>
+                                    <div class="relative bg-slate-950 rounded-xl overflow-hidden border border-slate-800 p-2 h-44 flex items-center justify-center cursor-pointer" onclick="startInteractiveCase()">
+                                        <svg viewBox="0 0 400 300" class="w-full h-full text-slate-300">
+                                            <rect width="400" height="300" fill="#030712"/>
+                                            <!-- Ribs and lungs SVG skeleton -->
+                                            <path d="M 120 70 Q 70 120 110 220 Q 150 260 170 200 Q 180 120 120 70 Z" fill="#1f2937" opacity="0.8"/>
+                                            <path d="M 280 70 Q 330 120 290 220 Q 250 260 230 200 Q 220 120 280 70 Z" fill="#1f2937" opacity="0.8"/>
+                                            <!-- Wedge Hampton hump opacity -->
+                                            <path d="M 270 180 L 315 205 L 285 225 Z" fill="#f59e0b" opacity="0.85"/>
+                                            <circle cx="290" cy="200" r="18" stroke="#f59e0b" stroke-width="2" fill="none" stroke-dasharray="3,3"/>
+                                        </svg>
+                                        <div class="absolute bottom-2 left-2 bg-slate-900/90 text-[10px] text-kzGold px-2 py-1 rounded border border-kzGold/30 font-mono">
+                                            <i class="fa-solid fa-expand mr-1"></i> Интерактивный Рентген ОГК
+                                        </div>
+                                    </div>
+                                    <button onclick="startInteractiveCase()" class="w-full bg-kzSky hover:bg-kzSkyDark text-white py-3 rounded-xl font-bold text-sm transition-all shadow text-center">
+                                        Решать данный кейс <i class="fa-solid fa-chevron-right ml-1 text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="page-cases" class="page-section hidden py-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold font-heading text-slate-900">Клинические кейсы</h1>
+                        <p class="text-sm text-slate-500 mt-1">Выберите кейс для дифференциальной диагностики</p>
+                    </div>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white rounded-2xl border-2 border-kzSky shadow-md overflow-hidden flex flex-col justify-between">
+                        <div class="bg-kzSkyLight px-4 py-2 flex items-center justify-between border-b border-kzSky/20">
+                            <span class="text-[11px] font-bold text-kzSkyDark uppercase"><i class="fa-solid fa-star text-kzGold mr-1"></i> Интерактивный кейс</span>
+                            <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">Рентген + ЭКГ</span>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <div class="flex items-center space-x-3">
+                                <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150" alt="Пациент" class="w-12 h-12 rounded-xl object-cover border border-slate-200">
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-sm">Пациентка Н., 58 лет</h3>
+                                    <p class="text-xs text-slate-500">Острый плевритический синдром</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-600">Интерактивный анализ рентгенограммы ОГК, выявление клиновидного затемнения Хэмптона и плеврального выпота.</p>
+                        </div>
+                        <div class="p-4 bg-slate-50 border-t border-slate-100">
+                            <button onclick="startInteractiveCase()" class="w-full bg-kzSky hover:bg-kzSkyDark text-white py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center space-x-2">
+                                <span>Начать разбор кейса</span>
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section id="page-library" class="page-section hidden py-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h1 class="text-2xl font-bold mb-4">Библиотека рентгенологических протоколов МЗ РК</h1>
+                <p class="text-slate-600 text-sm">Материалы готовятся к публикации...</p>
+            </div>
+        </section>
+        <section id="page-about" class="page-section hidden py-10">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-4">
+                    <h1 class="text-2xl font-bold text-slate-900">О тренажёре PulmoAI</h1>
+                    <p class="text-xs text-slate-600">Система симуляции рентгенологической оценки органов грудной клетки для клинических резидентов Республики Казахстан.</p>
+                </div>
+            </div>
+        </section>
+        <section id="page-interactive-case" class="page-section hidden py-6 bg-slate-100/70">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                <!-- Step Progress Tracker Header -->
+                <div class="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 mb-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+                        <div class="flex items-center space-x-3">
+                            <span class="bg-kzSky/10 text-kzSkyDark font-bold text-xs px-3 py-1 rounded-full border border-kzSky/20">Кейс #104</span>
+                            <h2 class="text-lg sm:text-xl font-bold text-slate-900">Пациентка Н.М., 58 лет — Острый синдром одышки</h2>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-semibold text-slate-500">Прогресс кейса:</span>
+                            <span id="case-progress-percent" class="text-xs font-extrabold text-kzSky">25%</span>
+                        </div>
+                    </div>
+                    <!-- Steps Bar -->
+                    <div class="grid grid-cols-4 gap-2 text-center">
+                        <div id="step-tab-1" class="step-tab-btn cursor-pointer p-2 rounded-xl border-2 border-kzSky bg-kzSkyLight transition-all">
+                            <p class="text-[10px] sm:text-xs font-extrabold uppercase text-kzSkyDark">Шаг 1</p>
+                            <p class="text-xs sm:text-sm font-bold text-slate-800 hidden sm:block">Анамнез & Жалобы</p>
+                        </div>
+                        <div id="step-tab-2" class="step-tab-btn cursor-not-allowed opacity-50 p-2 rounded-xl border border-slate-200 bg-white transition-all">
+                            <p class="text-[10px] sm:text-xs font-bold uppercase text-slate-400">Шаг 2</p>
+                            <p class="text-xs sm:text-sm font-bold text-slate-600 hidden sm:block">Визуализация CXR & Лаб.</p>
+                        </div>
+                        <div id="step-tab-3" class="step-tab-btn cursor-not-allowed opacity-50 p-2 rounded-xl border border-slate-200 bg-white transition-all">
+                            <p class="text-[10px] sm:text-xs font-bold uppercase text-slate-400">Шаг 3</p>
+                            <p class="text-xs sm:text-sm font-bold text-slate-600 hidden sm:block">Диагноз & Тактика</p>
+                        </div>
+                        <div id="step-tab-4" class="step-tab-btn cursor-not-allowed opacity-50 p-2 rounded-xl border border-slate-200 bg-white transition-all">
+                            <p class="text-[10px] sm:text-xs font-bold uppercase text-slate-400">Шаг 4</p>
+                            <p class="text-xs sm:text-sm font-bold text-slate-600 hidden sm:block">ИИ-Разбор & Оценка</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- CASE STEP 1: Patient Profile -->
+                <div id="case-step-1" class="case-step-content space-y-6">
+                    <div class="grid lg:grid-cols-12 gap-6">
+                        <div class="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <div class="flex items-center space-x-4">
+                                <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=300" alt="Пациент" class="w-20 h-20 rounded-2xl object-cover border-2 border-kzSky shadow-sm">
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900">Алиева Нургуль Маратовна</h3>
+                                    <p class="text-xs text-slate-500">Возраст: 58 лет • Пол: Женский</p>
+                                    <span class="inline-block mt-2 bg-red-100 text-red-700 text-[10px] font-bold px-2.5 py-0.5 rounded-full">Экстренное поступление</span>
+                                </div>
+                            </div>
+                            <div class="border-t border-slate-100 pt-4 space-y-3">
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center">
+                                    <i class="fa-solid fa-notes-medical text-kzSky mr-2"></i> Основные жалобы
+                                </h4>
+                                <ul class="text-xs text-slate-600 space-y-2">
+                                    <li class="flex items-start"><i class="fa-solid fa-circle-dot text-red-500 text-[8px] mt-1 mr-2"></i><span><strong>Острая одышка</strong> внезапного характера.</span></li>
+                                    <li class="flex items-start"><i class="fa-solid fa-circle-dot text-red-500 text-[8px] mt-1 mr-2"></i><span><strong>Интенсивная боль</strong> в правой половине груди при вдохе.</span></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center">
+                                    <i class="fa-solid fa-heart-pulse text-red-500 mr-2"></i> Данные физикального осмотра
+                                </h3>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <p class="text-[10px] text-slate-400 font-semibold uppercase">АД</p>
+                                        <p class="text-sm font-bold text-slate-800 mt-1">105 / 65 мм рт.ст.</p>
+                                    </div>
+                                    <div class="p-3 bg-red-50 rounded-xl border border-red-100">
+                                        <p class="text-[10px] text-red-500 font-semibold uppercase">ЧСС / Пульс</p>
+                                        <p class="text-sm font-bold text-red-700 mt-1">112 уд/мин</p>
+                                    </div>
+                                    <div class="p-3 bg-red-50 rounded-xl border border-red-100">
+                                        <p class="text-[10px] text-red-500 font-semibold uppercase">SpO2</p>
+                                        <p class="text-sm font-bold text-red-700 mt-1">89% (на воздухе)</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pt-4 border-t border-slate-100 flex justify-end">
+                                <button onclick="goToStep(2)" class="bg-kzSky hover:bg-kzSkyDark text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center space-x-2">
+                                    <span>Перейти к рентгенограмме ОГК (Шаг 2)</span>
+                                    <i class="fa-solid fa-arrow-right text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="case-step-2" class="case-step-content hidden space-y-6">
+                    <div class="grid lg:grid-cols-12 gap-6">
+                        
+                        <!-- Main Interactive CXR Viewer Widget -->
+                        <div class="lg:col-span-8 bg-slate-900 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col" id="cxr-main-container">
+                            
+                            <!-- CXR Toolbar Header -->
+                            <div class="bg-slate-950 px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-white">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-x-ray text-kzGold text-lg"></i>
+                                    <span class="font-bold text-xs sm:text-sm">Рентгенограмма ОГК (Прямая проекция)</span>
+                                    <span class="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-mono">DICOM #2026-CXR</span>
+                                </div>
+                                <!-- Interactive Controls -->
+                                <div class="flex items-center space-x-2">
+                                    <!-- Zoom controls -->
+                                    <div class="flex bg-slate-800 rounded-lg p-1 space-x-1 border border-slate-700">
+                                        <button onclick="zoomCxr(1.2)" class="p-1.5 hover:bg-slate-700 rounded text-xs text-white" title="Увеличить"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                                        <button onclick="zoomCxr(0.8)" class="p-1.5 hover:bg-slate-700 rounded text-xs text-white" title="Уменьшить"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                                        <button onclick="resetCxrView()" class="p-1.5 hover:bg-slate-700 rounded text-xs text-slate-300" title="Сброс масштаба"><i class="fa-solid fa-rotate-left"></i></button>
+                                    </div>
+                                    <!-- DICOM Contrast & Invert -->
+                                    <button onclick="toggleDicomInvert()" id="invert-btn" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-kzGold" title="Инверсия тона (DICOM Negative)">
+                                        <i class="fa-solid fa-circle-half-stroke mr-1"></i>Инверсия
+                                    </button>
+                                    <!-- Toggle Hotspot Markers -->
+                                    <button onclick="toggleHotspots()" id="hotspot-btn" class="p-2 bg-kzGold text-slate-950 font-bold rounded-lg text-xs hover:bg-kzGoldDark transition-all" title="Показать/скрыть патологические очаги">
+                                        <i class="fa-solid fa-eye mr-1"></i> Очаги (ON)
+                                    </button>
+                                    <!-- Fullscreen & Download -->
+                                    <button onclick="toggleCxrFullscreen()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-white" title="Полноэкранный режим">
+                                        <i class="fa-solid fa-expand"></i>
+                                    </button>
+                                    <button onclick="downloadCxrImage()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-white" title="Скачать снимки">
+                                        <i class="fa-solid fa-download"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Interactive Canvas Screen Viewport -->
+                            <div class="relative w-full h-[480px] bg-black overflow-hidden flex items-center justify-center" id="viewport-box">
+                                
+                                <div id="cxr-viewport" class="dicom-viewport relative transform transition-transform duration-100 flex items-center justify-center">
+                                    <!-- High Resolution Simulated SVG Chest X-Ray Medical Image -->
+                                    <svg id="cxr-svg" viewBox="0 0 600 600" class="w-[450px] h-[450px] transition-all">
+                                        <defs>
+                                            <radialGradient id="lungBg" cx="50%" cy="50%" r="50%">
+                                                <stop offset="0%" stop-color="#111827"/>
+                                                <stop offset="100%" stop-color="#030712"/>
+                                            </radialGradient>
+                                            <filter id="blurFilter">
+                                                <feGaussianBlur stdDeviation="3" />
+                                            </filter>
+                                        </defs>
+                                        <!-- Background Frame -->
+                                        <rect width="600" height="600" fill="url(#lungBg)"/>
+                                        <!-- Soft tissue contour -->
+                                        <path d="M 150 80 Q 300 40 450 80 Q 520 200 480 500 Q 300 550 120 500 Q 80 200 150 80 Z" fill="#1f2937" opacity="0.5"/>
+                                        <!-- Trachea -->
+                                        <rect x="290" y="60" width="20" height="120" rx="5" fill="#111827" stroke="#4b5563" stroke-width="1.5"/>
+                                        <!-- LEFT LUNG FIELD -->
+                                        <path d="M 170 120 C 100 180 110 360 170 420 C 230 430 250 350 250 200 C 250 140 220 110 170 120 Z" fill="#0f172a" stroke="#374151" stroke-width="2"/>
+                                        
+                                        <!-- RIGHT LUNG FIELD (Pathological Infiltration) -->
+                                        <path d="M 430 120 C 500 180 490 360 430 420 C 370 430 350 350 350 200 C 350 140 380 110 430 120 Z" fill="#0f172a" stroke="#374151" stroke-width="2"/>
+                                        <!-- Clavicles -->
+                                        <path d="M 120 110 Q 220 130 280 140" stroke="#9ca3af" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.8"/>
+                                        <path d="M 480 110 Q 380 130 320 140" stroke="#9ca3af" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.8"/>
+                                        <!-- Rib Cage Anatomy -->
+                                        <path d="M 160 160 Q 240 190 270 210 M 150 210 Q 240 240 270 260 M 140 270 Q 240 300 270 320 M 140 330 Q 240 360 260 380" stroke="#6b7280" stroke-width="7" fill="none" opacity="0.6"/>
+                                        <path d="M 440 160 Q 360 190 330 210 M 450 210 Q 360 240 330 260 M 460 270 Q 360 300 330 320 M 460 330 Q 360 360 340 380" stroke="#6b7280" stroke-width="7" fill="none" opacity="0.6"/>
+                                        <!-- Heart Shadow (Cardiovascular silhouette) -->
+                                        <path d="M 280 220 Q 220 280 260 380 Q 340 400 350 320 Q 330 240 280 220 Z" fill="#4b5563" opacity="0.85"/>
+                                        <!-- PATHOLOGY 1: Wedge-shaped Infiltration (Hampton's Hump in Right Lower Lobe) -->
+                                        <path id="pathology-hampton" d="M 410 330 L 475 365 L 430 405 Z" fill="#eab308" opacity="0.75" filter="url(#blurFilter)"/>
+                                        
+                                        <!-- PATHOLOGY 2: Pleural Effusion Costophrenic Angle Obscuration -->
+                                        <path id="pathology-effusion" d="M 430 405 Q 470 415 485 435 L 415 435 Z" fill="#38bdf8" opacity="0.8" filter="url(#blurFilter)"/>
+                                        <!-- Diaphragm outlines -->
+                                        <path d="M 130 420 Q 200 390 270 420" stroke="#9ca3af" stroke-width="6" fill="none"/>
+                                        <path d="M 330 420 Q 400 390 480 435" stroke="#9ca3af" stroke-width="6" fill="none"/>
+                                    </svg>
+                                    <!-- INTERACTIVE HOTSPOT MARKERS OVERLAY -->
+                                    <div id="hotspot-overlay" class="absolute inset-0 pointer-events-auto">
+                                        <!-- Hotspot 1: Hampton Hump -->
+                                        <div class="absolute top-[62%] right-[22%] cursor-pointer group" onclick="selectHotspot('hampton')">
+                                            <span class="w-7 h-7 rounded-full bg-kzGold border-2 border-white flex items-center justify-center text-slate-900 text-xs font-black shadow-lg pulse-marker">1</span>
+                                            <div class="hidden group-hover:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[11px] p-2.5 rounded-xl shadow-2xl border border-kzGold whitespace-nowrap z-30">
+                                                <p class="font-bold text-kzGold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Треугольное затемнение</p>
+                                                <p class="text-[10px] text-slate-300">Симптом Горба Хэмптона (Инфаркт легкого)</p>
+                                            </div>
+                                        </div>
+                                        <!-- Hotspot 2: Costophrenic Effusion -->
+                                        <div class="absolute top-[75%] right-[16%] cursor-pointer group" onclick="selectHotspot('effusion')">
+                                            <span class="w-7 h-7 rounded-full bg-sky-400 border-2 border-white flex items-center justify-center text-slate-900 text-xs font-black shadow-lg pulse-marker">2</span>
+                                            <div class="hidden group-hover:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[11px] p-2.5 rounded-xl shadow-2xl border border-sky-400 whitespace-nowrap z-30">
+                                                <p class="font-bold text-sky-300"><i class="fa-solid fa-droplet mr-1"></i> Затененный правый синус</p>
+                                                <p class="text-[10px] text-slate-300">Малый плевральный выпот (&lt;150 мл)</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Viewer Bottom Info overlay -->
+                                <div class="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-800 text-[11px] text-slate-300 flex items-center space-x-3 font-mono">
+                                    <span><i class="fa-solid fa-compress mr-1 text-kzGold"></i> Масштаб: <b id="zoom-value">100%</b></span>
+                                    <span>•</span>
+                                    <span class="text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i> Качество: Высшее (HD)</span>
+                                </div>
+                            </div>
+                            <!-- Radiologist Analysis Console -->
+                            <div class="bg-slate-950 p-4 border-t border-slate-800 text-slate-300 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-kzGold uppercase tracking-wider"><i class="fa-solid fa-stethoscope mr-1"></i> Находки на рентгенограмме:</span>
+                                    <span class="text-[10px] text-slate-400">Нажмите на подсвеченные цифры 1 и 2</span>
+                                </div>
+                                <div id="hotspot-description" class="text-xs bg-slate-900 p-3 rounded-xl border border-slate-800 text-slate-300">
+                                    В нижней доле правого легкого субплеврально выявляется клиновидная инфильтрация ткани основанием к плевре (симптом Хэмптона). Правый костно-диафрагмальный синус сглажен за счет реакции плевры.
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Right Panel: ECG and Diagnostic Findings -->
+                        <div class="lg:col-span-4 space-y-6">
+                            
+                            <!-- Tab selection for secondary diagnostic -->
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                    <h3 class="font-bold text-slate-900 text-sm">
+                                        <i class="fa-solid fa-heart-pulse text-red-500 mr-1.5"></i> ЭКГ (12 отведений)
+                                    </h3>
+                                    <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">Тахикардия</span>
+                                </div>
+                                <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-3 relative overflow-hidden">
+                                    <div class="text-[10px] font-mono font-bold text-slate-700 mb-1">Отведение III (S1Q3T3 Паттерн):</div>
+                                    <svg class="w-full h-14 stroke-red-600 fill-none stroke-2" viewBox="0 0 400 50">
+                                        <path d="M0,25 L20,25 L25,25 L28,40 L35,10 L40,30 L48,38 L70,25 L90,25 L110,25 L115,25 L118,40 L125,10 L130,30 L138,38 L160,25"/>
+                                    </svg>
+                                    <p class="text-[10px] text-amber-900 mt-2 font-medium">Синдром Мак-Джина-Уайта (выраженный S1, глубокий Q3, отрицательный T3).</p>
+                                </div>
+                                <div class="space-y-2 border-t border-slate-100 pt-3">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">Д-Димер:</span>
+                                        <span class="font-bold text-red-600">3.85 мкг/мл (Высокий)</span>
+                                    </div>
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">Газы крови PaO2:</span>
+                                        <span class="font-bold text-amber-600">62 мм рт.ст.</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-kzSkyLight p-5 rounded-2xl border border-kzSky/30 space-y-3">
+                                <h4 class="font-bold text-slate-900 text-xs uppercase text-kzSkyDark">Подсказка клинического мышления</h4>
+                                <p class="text-xs text-slate-700 leading-relaxed">Сочетание клиновидной тени на рентгене ОГК, синдрома S1Q3T3 на ЭКГ и резкого подъема Д-димера у пациентки с факторами риска указывает на ургентную патологию.</p>
+                            </div>
+                            <div class="flex justify-between items-center pt-2">
+                                <button onclick="goToStep(1)" class="text-slate-600 hover:text-slate-900 text-xs font-semibold">
+                                    <i class="fa-solid fa-arrow-left mr-1"></i> Назад
+                                </button>
+                                <button onclick="goToStep(3)" class="bg-kzSky hover:bg-kzSkyDark text-white px-6 py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center space-x-2">
+                                    <span>Выставить диагноз (Шаг 3)</span>
+                                    <i class="fa-solid fa-arrow-right text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="case-step-3" class="case-step-content hidden space-y-6">
+                    <div class="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8">
+                        <div>
+                            <h3 class="text-xl font-extrabold text-slate-900 font-heading">
+                                Принятие клинического решения
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-1">Оценив снимки рентгена ОГК, ЭКГ и маркеры, выберите верный диагноз и тактику лечения.</p>
+                        </div>
+                        <!-- Question 1 -->
+                        <div class="space-y-3">
+                            <label class="block text-sm font-bold text-slate-800">
+                                1. Ваш окончательный диагноз на основе рентгенограммы и симптомов:
+                            </label>
+                            <div class="space-y-2">
+                                <label class="flex items-center p-3.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-kzSkyLight/30 transition-all font-medium text-xs sm:text-sm text-slate-700">
+                                    <input type="radio" name="diagnosis" value="pte" class="w-4 h-4 text-kzSky mr-3">
+                                    <span>Тромбоэмболия ветвей легочной артерии (ТЭЛА), инфаркт-пневмония правого легкого</span>
+                                </label>
+                                <label class="flex items-center p-3.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-kzSkyLight/30 transition-all font-medium text-xs sm:text-sm text-slate-700">
+                                    <input type="radio" name="diagnosis" value="pneumonia" class="w-4 h-4 text-kzSky mr-3">
+                                    <span>Внебольничная правосторонняя нижнедолевая пневмония</span>
+                                </label>
+                            </div>
+                        </div>
+                        <!-- Question 2 -->
+                        <div class="space-y-3">
+                            <label class="block text-sm font-bold text-slate-800">
+                                2. Первоочередная инструментальная верификация:
+                            </label>
+                            <div class="space-y-2">
+                                <label class="flex items-center p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-kzSkyLight/30 transition-all text-xs font-semibold text-slate-700">
+                                    <input type="radio" name="next_test" value="ct_angio" checked class="w-4 h-4 text-kzSky mr-2">
+                                    <span>КТ-ангиопульмонография ОГК с болюсным контрастированием</span>
+                                </label>
+                            </div>
+                        </div>
+                        <p id="diagnosis-error" class="hidden text-xs font-semibold text-red-600">Выберите диагноз, чтобы завершить кейс.</p>
+                        <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                            <button onclick="goToStep(2)" class="text-slate-600 hover:text-slate-900 text-xs font-semibold px-3 py-2">
+                                <i class="fa-solid fa-arrow-left mr-1"></i> Назад
+                            </button>
+                            <button onclick="submitCaseAnalysis()" class="bg-gradient-to-r from-kzSky to-kzSkyDark text-white px-8 py-3.5 rounded-xl font-bold text-sm shadow-lg shadow-kzSky/30 hover:shadow-xl transition-all flex items-center space-x-2">
+                                <i class="fa-solid fa-square-check text-kzGold"></i>
+                                <span>Завершить и получить ИИ-разбор</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div id="case-step-4" class="case-step-content hidden space-y-6">
+                    <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-kzSkyDark text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+                        <div class="relative z-10 grid md:grid-cols-12 gap-6 items-center">
+                            <div class="md:col-span-8 space-y-3">
+                                <div class="inline-flex items-center space-x-2 bg-kzGold/20 text-kzGold border border-kzGold/40 px-3 py-1 rounded-full text-xs font-bold">
+                                    <i class="fa-solid fa-microchip"></i>
+                                    <span>Результат клинического анализа PulmoAI</span>
+                                </div>
+                                <h3 id="result-title" class="text-2xl sm:text-3xl font-extrabold font-heading">
+                                    Великолепный результат!
+                                </h3>
+                                <p id="result-summary" class="text-xs sm:text-sm text-slate-300">
+                                    Вы безошибочно расшифровали снимки ОГК и определили рентгенологический симптом Хэмптона, подтвердив ТЭЛА.
+                                </p>
+                            </div>
+                            <div class="md:col-span-4 text-center md:border-l md:border-slate-700/80 md:pl-6">
+                                <p class="text-xs text-slate-400 font-medium">Точность диагноза</p>
+                                <p class="text-5xl font-black text-kzGold font-heading my-1"><span id="result-score">98</span><span class="text-2xl">%</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <h4 class="font-bold text-slate-900 text-base border-b border-slate-100 pb-2">Разбор Рентгенограммы ОГК от ИИ:</h4>
+                        <p id="result-feedback" class="text-xs text-slate-600 leading-relaxed">
+                            На представленной прямой рентгенограмме органов грудной клетки визуализируется так называемый <strong>"горб Хэмптона" (Hampton's Hump)</strong> — асептическая инфаркт-пневмония субплевральной локализации треугольной формы. Сглаженность правого костно-диафрагмального синуса обусловлена выпотом. Данный рентгенологический феномен высокоспецифичен для ТЭЛА мелких ветвей.
+                        </p>
+                        <button onclick="navigateTo('cases')" class="bg-kzSky text-white px-6 py-2.5 rounded-xl text-xs font-bold shadow">Вернуться к кейсам</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <footer class="bg-slate-900 text-slate-400 py-12 border-t-4 border-kzGold mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 text-center md:text-left">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-lg bg-kzSky flex items-center justify-center text-white text-base font-bold">
+                        <i class="fa-solid fa-lungs text-kzGold"></i>
+                    </div>
+                    <span class="text-xl font-extrabold text-white font-heading">Pulmo<span class="text-kzSky">AI</span></span>
+                </div>
+                <p class="text-xs text-slate-400">© 2026 PulmoAI Kazakhstan. Интерактивная диагностика органов грудной клетки.</p>
+            </div>
+        </div>
+    </footer>
+    <script>
+        let currentZoom = 1.0;
+        let showHotspots = true;
+        let isInvertedTone = false;
+        function navigateTo(pageId) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById('page-' + pageId);
+            if(target) target.classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-kzSky', 'bg-kzSkyLight');
+                btn.classList.add('text-slate-600');
+            });
+            const activeNav = document.getElementById('nav-' + pageId);
+            if(activeNav) {
+                activeNav.classList.add('text-kzSky', 'bg-kzSkyLight');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function startInteractiveCase() {
+            navigateTo('interactive-case');
+            goToStep(1);
+        }
+        function goToStep(stepNum) {
+            document.querySelectorAll('.case-step-content').forEach(el => el.classList.add('hidden'));
+            const currentStepEl = document.getElementById('case-step-' + stepNum);
+            if(currentStepEl) currentStepEl.classList.remove('hidden');
+            for(let i = 1; i <= 4; i++) {
+                const tab = document.getElementById('step-tab-' + i);
+                if(!tab) continue;
+                if(i === stepNum) {
+                    tab.className = "step-tab-btn cursor-pointer p-2 rounded-xl border-2 border-kzSky bg-kzSkyLight transition-all";
+                } else if(i < stepNum) {
+                    tab.className = "step-tab-btn cursor-pointer p-2 rounded-xl border border-emerald-300 bg-emerald-50 transition-all";
+                } else {
+                    tab.className = "step-tab-btn cursor-not-allowed opacity-50 p-2 rounded-xl border border-slate-200 bg-white transition-all";
+                }
+            }
+            const progressMap = {1: '25%', 2: '50%', 3: '75%', 4: '100%'};
+            document.getElementById('case-progress-percent').innerText = progressMap[stepNum] || '0%';
+            window.scrollTo({ top: 120, behavior: 'smooth' });
+        }
+        /* CXR Viewer Controls Functions */
+        function zoomCxr(factor) {
+            currentZoom = Math.max(0.7, Math.min(2.5, currentZoom * factor));
+            updateCxrTransform();
+        }
+        function resetCxrView() {
+            currentZoom = 1.0;
+            updateCxrTransform();
+        }
+        function updateCxrTransform() {
+            const viewport = document.getElementById('cxr-viewport');
+            viewport.style.transform = `scale(${currentZoom})`;
+            document.getElementById('zoom-value').innerText = Math.round(currentZoom * 100) + '%';
+        }
+        function toggleHotspots() {
+            showHotspots = !showHotspots;
+            const overlay = document.getElementById('hotspot-overlay');
+            const btn = document.getElementById('hotspot-btn');
+            
+            if(showHotspots) {
+                overlay.style.display = 'block';
+                btn.className = "p-2 bg-kzGold text-slate-950 font-bold rounded-lg text-xs hover:bg-kzGoldDark transition-all";
+                btn.innerHTML = `<i class="fa-solid fa-eye mr-1"></i> Очаги (ON)`;
+            } else {
+                overlay.style.display = 'none';
+                btn.className = "p-2 bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-xs";
+                btn.innerHTML = `<i class="fa-solid fa-eye-slash mr-1"></i> Очаги (OFF)`;
+            }
+        }
+        function toggleDicomInvert() {
+            isInvertedTone = !isInvertedTone;
+            const svg = document.getElementById('cxr-svg');
+            const btn = document.getElementById('invert-btn');
+            
+            if(isInvertedTone) {
+                svg.style.filter = 'invert(100%)';
+                btn.classList.add('bg-kzGold', 'text-slate-900');
+            } else {
+                svg.style.filter = 'none';
+                btn.classList.remove('bg-kzGold', 'text-slate-900');
+            }
+        }
+        function selectHotspot(type) {
+            const consoleBox = document.getElementById('hotspot-description');
+            if(type === 'hampton') {
+                consoleBox.innerHTML = `
+                    <p class="font-bold text-kzGold"><i class="fa-solid fa-circle-info mr-1"></i> Очаг #1: Горб Хэмптона (Hampton's Hump)</p>
+                    <p class="mt-1">Субплевральное треугольное клиновидное затемнение в нижней доле правого легкого. Является следствием клиновидного инфаркта легочной ткани при эмболии ветви легочной артерии.</p>
+                `;
+            } else if(type === 'effusion') {
+                consoleBox.innerHTML = `
+                    <p class="font-bold text-sky-400"><i class="fa-solid fa-circle-info mr-1"></i> Очаг #2: Реактивный плевральный выпот</p>
+                    <p class="mt-1">Затенение правого костно-диафрагмального синуса за счет скопления небольшого количества плевральной жидкости на фоне реакции на инфаркт-пневмонию.</p>
+                `;
+            }
+        }
+        function toggleCxrFullscreen() {
+            const container = document.getElementById('cxr-main-container');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => alert(`Ошибка полноэкранного режима: ${err.message}`));
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        function downloadCxrImage() {
+            alert('Снимок органов грудной клетки (DICOM) успешно сохранен в вашу медицинскую библиотеку.');
+        }
+        function submitCaseAnalysis() {
+            const choice = document.querySelector('input[name="diagnosis"]:checked');
+            const errorEl = document.getElementById('diagnosis-error');
+            if (!choice) { errorEl.classList.remove('hidden'); return; }
+            errorEl.classList.add('hidden');
+            const correct = choice.value === 'pte';
+            const feedbackEl = document.getElementById('result-feedback');
+            if (!feedbackEl.dataset.correctHtml) feedbackEl.dataset.correctHtml = feedbackEl.innerHTML;
+            document.getElementById('result-title').innerText = correct ? 'Великолепный результат!' : 'Требуется коррекция';
+            document.getElementById('result-score').innerText = correct ? '98' : '40';
+            document.getElementById('result-summary').innerText = correct
+                ? 'Вы безошибочно расшифровали снимки ОГК и определили рентгенологический симптом Хэмптона, подтвердив ТЭЛА.'
+                : 'Диагноз выбран неверно: признаки на снимке и клиника указывают на ТЭЛА, а не на пневмонию.';
+            feedbackEl.innerHTML = correct
+                ? feedbackEl.dataset.correctHtml
+                : 'Правильный диагноз — <strong>ТЭЛА с инфаркт-пневмонией</strong>. Треугольное субплевральное затемнение (<strong>горб Хэмптона</strong>) в сочетании с острой одышкой и выпотом в правом синусе указывает на эмболию мелких ветвей, а не на внебольничную пневмонию. Следующий шаг — КТ-ангиопульмонография.';
+            goToStep(4);
+        }
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>

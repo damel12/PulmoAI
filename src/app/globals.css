@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sky: #00a3e0;
+  --color-sky-dark: #0077a8;
+  --color-sky-light: #e6f6fc;
+  --color-gold: #ffc72c;
+  --color-gold-dark: #b8860b;
+  --color-gold-light: #fff8e1;
+  --color-ink: #0f172a;
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+  --font-heading: var(--font-montserrat), system-ui, sans-serif;
+}
+
+body {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.reveal {
+  animation: reveal 0.25s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+}
+
+.ornament {
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg width='40' height='10' viewBox='0 0 40 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0C15 0 13 6 10 6C7 6 5 0 0 0V2C4 2 6 8 10 8C14 8 16 2 20 2C24 2 26 8 30 8C34 8 36 2 40 2V0C35 0 33 6 30 6C27 6 25 0 20 0Z' fill='%23FFC72C'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+}

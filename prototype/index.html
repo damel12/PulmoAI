@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulmoAI — запуск тренажёра</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+    <div class="max-w-3xl w-full space-y-8">
+        <div>
+            <p class="text-emerald-400 text-sm font-semibold tracking-wide">PulmoAI</p>
+            <h1 class="text-3xl font-black mt-1">Выберите интерфейс тренажёра</h1>
+            <p class="text-slate-400 mt-2 text-sm">В сообщении были две полные HTML-версии — обе сохранены и запускаются локально.</p>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-4">
+            <a href="kz.html" class="block rounded-2xl border border-sky-500/40 bg-sky-950/40 p-6 hover:border-sky-400 transition">
+                <p class="text-sky-300 text-xs font-bold uppercase">Светлая версия</p>
+                <h2 class="text-xl font-bold mt-2">Клинический кейс ТЭЛА</h2>
+                <p class="text-slate-400 text-sm mt-2">Рентген ОГК, очаги Хэмптона, ЭКГ, шаги 1–4.</p>
+            </a>
+            <a href="neo.html" class="block rounded-2xl border border-emerald-500/40 bg-emerald-950/40 p-6 hover:border-emerald-400 transition">
+                <p class="text-emerald-300 text-xs font-bold uppercase">Dark HUD</p>
+                <h2 class="text-xl font-bold mt-2">NEO-HUD v2.5 — ИЛФ</h2>
+                <p class="text-slate-400 text-sm mt-2">Аускультация Velcro, ВРКТ, спирометрия, AI-оценка.</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

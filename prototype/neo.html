@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulmoAI — Dark Medical Tech Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0B1120',
+                        darkcard: '#0F172A',
+                        darkborder: '#1E293B',
+                        emeraldneon: '#10B981',
+                        cyantech: '#06B6D4',
+                        skytech: '#0EA5E9',
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #0B1120;
+            color: #F8FAFC;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(30, 41, 59, 0.8);
+        }
+        .glass-panel-glow {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.15);
+        }
+        .hud-border {
+            position: relative;
+        }
+        .hud-border::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 8px; height: 8px;
+            border-top: 2px solid #06B6D4;
+            border-left: 2px solid #06B6D4;
+        }
+        .hud-border::after {
+            content: '';
+            position: absolute;
+            bottom: 0; right: 0; width: 8px; height: 8px;
+            border-bottom: 2px solid #10B981;
+            border-right: 2px solid #10B981;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-ring {
+            animation: pulse-ring 2.5s infinite ease-in-out;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0B1120; }
+        ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #10B981; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-emeraldneon selection:text-slate-900">
+    <!-- NAVIGATION HEADER -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                <!-- Brand Logo -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('home')">
+                    <div class="relative w-11 h-11 rounded-xl bg-gradient-to-br from-emeraldneon to-cyantech p-0.5 shadow-lg shadow-emeraldneon/20">
+                        <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                            <i class="fa-solid fa-lungs text-xl bg-gradient-to-r from-emeraldneon to-cyantech bg-clip-text text-transparent"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-2xl font-black tracking-tight text-white">Pulmo<span class="text-emeraldneon">AI</span></span>
+                            <span class="text-[10px] font-mono bg-emeraldneon/10 text-emeraldneon px-2 py-0.5 rounded border border-emeraldneon/30">NEO-HUD v2.5</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-medium">Интерактивный пульмонологический тренажёр</p>
+                    </div>
+                </div>
+                <!-- Main Nav Links -->
+                <nav class="hidden md:flex space-x-2 bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800">
+                    <button id="nav-home" onclick="switchTab('home')" class="nav-btn px-5 py-2 rounded-xl text-sm font-semibold text-emeraldneon bg-slate-800 border border-emeraldneon/30 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-chart-pie text-xs"></i>
+                        <span>Главная</span>
+                    </button>
+                    <button id="nav-case" onclick="switchTab('case')" class="nav-btn px-5 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-microscope text-xs"></i>
+                        <span>Тренажёр</span>
+                    </button>
+                    <button id="nav-library" onclick="switchTab('library')" class="nav-btn px-5 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-book-medical text-xs"></i>
+                        <span>Атлас ВРКТ</span>
+                    </button>
+                    <button id="nav-profile" onclick="switchTab('profile')" class="nav-btn px-5 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800/50 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-user-doctor text-xs"></i>
+                        <span>Профиль</span>
+                    </button>
+                </nav>
+                <!-- Right Action Button -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="startSimulatedCase('ipf')" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emeraldneon via-cyantech to-skytech text-slate-950 font-bold text-sm shadow-lg shadow-emeraldneon/20 hover:shadow-emeraldneon/40 hover:scale-[1.02] transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-bolt text-xs"></i>
+                        <span>Запустить кейс</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- MAIN VIEW CONTAINER -->
+    <main class="flex-grow">
+        <!-- ==================== TAB 1: HOME DASHBOARD ==================== -->
+        <section id="view-home" class="view-section py-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+                
+                <!-- Hero HUD Banner -->
+                <div class="glass-panel-glow rounded-3xl p-8 lg:p-12 relative overflow-hidden">
+                    <div class="absolute -right-20 -bottom-20 w-96 h-96 bg-emeraldneon/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute -left-20 -top-20 w-96 h-96 bg-cyantech/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+                        <div class="lg:col-span-8 space-y-6">
+                            <div class="inline-flex items-center space-x-2 bg-emeraldneon/10 border border-emeraldneon/30 text-emeraldneon px-3.5 py-1 rounded-full text-xs font-mono">
+                                <span class="w-2 h-2 rounded-full bg-emeraldneon animate-ping"></span>
+                                <span>AI-POWERED CLINICAL DECISION SIMULATOR</span>
+                            </div>
+                            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight">
+                                Развивайте <span class="bg-gradient-to-r from-emeraldneon via-cyantech to-skytech bg-clip-text text-transparent">клиническое мышление</span> с реальными профилями пациентов
+                            </h1>
+                            <p class="text-slate-300 text-base sm:text-lg max-w-2xl leading-relaxed">
+                                Анализируйте анамнез, портреты пациентов, слушайте «Velcro»-крепитацию, изучайте КТ-срезы высокого разрешения и принимайте решения под контролем нейросетевого эксперта.
+                            </p>
+                            
+                            <div class="pt-2 flex flex-wrap gap-4">
+                                <button onclick="startSimulatedCase('ipf')" class="px-8 py-4 rounded-xl bg-gradient-to-r from-emeraldneon to-cyantech text-slate-950 font-extrabold text-base shadow-xl shadow-emeraldneon/25 hover:opacity-90 transition-all flex items-center space-x-3">
+                                    <i class="fa-solid fa-play"></i>
+                                    <span>Решать кейс #104: ИЛФ vs ХОБЛ</span>
+                                </button>
+                                <button onclick="switchTab('library')" class="px-6 py-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-200 border border-slate-700 font-semibold text-base transition-all">
+                                    Атлас ВРКТ исследований
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Mini HUD Stats Widget -->
+                        <div class="lg:col-span-4 space-y-4">
+                            <div class="glass-panel p-6 rounded-2xl hud-border space-y-4">
+                                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                                    <span class="text-xs font-mono text-slate-400">ВАШ РЕЙТИНГ</span>
+                                    <span class="text-xs font-mono text-emeraldneon bg-emeraldneon/10 px-2 py-0.5 rounded">Статус: Врач-эксперт</span>
+                                </div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <div class="flex justify-between text-xs mb-1">
+                                            <span class="text-slate-300">Точность диагностики</span>
+                                            <span class="text-emeraldneon font-bold">94%</span>
+                                        </div>
+                                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-gradient-to-r from-emeraldneon to-cyantech h-full w-[94%]"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-xs mb-1">
+                                            <span class="text-slate-300">Интерпретация ВРКТ</span>
+                                            <span class="text-cyantech font-bold">90%</span>
+                                        </div>
+                                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-cyantech h-full w-[90%]"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-xs mb-1">
+                                            <span class="text-slate-300">Назначение антифибротиков</span>
+                                            <span class="text-skytech font-bold">96%</span>
+                                        </div>
+                                        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-skytech h-full w-[96%]"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Case Catalog Section with Patient Avatars -->
+                <div class="space-y-6">
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Доступные клинические случаи с галереей больных</h2>
+                            <p class="text-slate-400 text-sm">Выберите пациента для проведения симуляции</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Patient Card 1 (Active) -->
+                        <div class="glass-panel p-6 rounded-2xl border border-emeraldneon/40 hover:border-emeraldneon transition-all cursor-pointer group flex flex-col justify-between space-y-4" onclick="startSimulatedCase('ipf')">
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-4">
+                                    <div class="relative">
+                                        <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80" 
+                                             alt="Пациент Кузнецов В.А." 
+                                             class="w-16 h-16 rounded-xl object-cover border-2 border-emeraldneon/50 group-hover:border-emeraldneon transition-all"
+                                             onerror="this.src='https://placehold.co/150x150/0f172a/10b981?text=Пациент+104'">
+                                        <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emeraldneon rounded-full border-2 border-slate-900"></span>
+                                    </div>
+                                    <div>
+                                        <span class="px-2 py-0.5 bg-emeraldneon/10 text-emeraldneon border border-emeraldneon/30 text-[10px] font-mono font-semibold rounded">КЕЙС #104 • ИЛФ</span>
+                                        <h3 class="text-base font-bold text-white group-hover:text-emeraldneon transition-colors mt-0.5">Кузнецов В.А., 62 года</h3>
+                                        <p class="text-slate-400 text-xs font-mono">Инженер • Стаж курения 15 лет</p>
+                                    </div>
+                                </div>
+                                <p class="text-slate-300 text-xs leading-relaxed">
+                                    Нарастающая одышка при нагрузке, мелкая «Velcro»-крепитация в базальных отделах, сухой кашель 11 месяцев. Необходим дифференциальный диагноз с ХОБЛ.
+                                </p>
+                            </div>
+                            <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+                                <span class="text-xs text-slate-500 font-mono"><i class="fa-solid fa-clock mr-1"></i>15 мин • Сложность: Высокая</span>
+                                <span class="text-xs text-emeraldneon font-bold flex items-center space-x-1">
+                                    <span>Решать</span>
+                                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </span>
+                            </div>
+                        </div>
+                        <!-- Patient Card 2 -->
+                        <div class="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-slate-700 transition-all opacity-80 space-y-4">
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-4">
+                                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80" 
+                                         alt="Пациент Сергеев Н.И." 
+                                         class="w-16 h-16 rounded-xl object-cover border border-slate-700 filter grayscale opacity-70"
+                                         onerror="this.src='https://placehold.co/150x150/0f172a/06b6d4?text=Пациент+105'">
+                                    <div>
+                                        <span class="px-2 py-0.5 bg-cyantech/10 text-cyantech border border-cyantech/30 text-[10px] font-mono font-semibold rounded">КЕЙС #105 • ХОБЛ</span>
+                                        <h3 class="text-base font-bold text-white mt-0.5">Сергеев Н.И., 58 лет</h3>
+                                        <p class="text-slate-400 text-xs font-mono">Водитель • ИКС = 35 пачко-лет</p>
+                                    </div>
+                                </div>
+                                <p class="text-slate-400 text-xs leading-relaxed">
+                                    Тяжёлое обострение ХОБЛ, дистанционные свистящие хрипы, продуктивный кашель с гнойной мокротой. Оценка бронходилататорного ответа.
+                                </p>
+                            </div>
+                            <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+                                <span class="text-xs text-slate-500 font-mono"><i class="fa-solid fa-lock mr-1"></i>Скоро доступен</span>
+                            </div>
+                        </div>
+                        <!-- Patient Card 3 -->
+                        <div class="glass-panel p-6 rounded-2xl border border-slate-800 hover:border-slate-700 transition-all opacity-80 space-y-4">
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-4">
+                                    <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80" 
+                                         alt="Пациентка Морозова Е.П." 
+                                         class="w-16 h-16 rounded-xl object-cover border border-slate-700 filter grayscale opacity-70"
+                                         onerror="this.src='https://placehold.co/150x150/0f172a/0ea5e9?text=Пациентка+106'">
+                                    <div>
+                                        <span class="px-2 py-0.5 bg-skytech/10 text-skytech border border-skytech/30 text-[10px] font-mono font-semibold rounded">КЕЙС #106 • САРКОИДОЗ</span>
+                                        <h3 class="text-base font-bold text-white mt-0.5">Морозова Е.П., 38 лет</h3>
+                                        <p class="text-slate-400 text-xs font-mono">Архитектор • Не курит</p>
+                                    </div>
+                                </div>
+                                <p class="text-slate-400 text-xs leading-relaxed">
+                                    Двусторонняя внутригрудная лимфаденопатия, синдром Лефгрена, узловатая эритема голеней. Интерпретация биопсии ВГЛУ.
+                                </p>
+                            </div>
+                            <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+                                <span class="text-xs text-slate-500 font-mono"><i class="fa-solid fa-lock mr-1"></i>Скоро доступен</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ==================== TAB 2: CLINICAL CASE SIMULATOR ==================== -->
+        <section id="view-case" class="view-section hidden py-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+                
+                <!-- HUD Header Bar with Patient Header Card -->
+                <div class="glass-panel-glow p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div class="flex items-center space-x-5">
+                        <div class="relative">
+                            <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&auto=format&fit=crop&q=80" 
+                                 alt="Кузнецов В.А." 
+                                 class="w-20 h-20 rounded-2xl object-cover border-2 border-emeraldneon p-0.5 bg-slate-900 shadow-lg shadow-emeraldneon/20"
+                                 onerror="this.src='https://placehold.co/200x200/0f172a/10b981?text=Кузнецов'">
+                            <span class="absolute -bottom-1 -right-1 px-1.5 py-0.5 bg-emeraldneon text-slate-950 font-black text-[9px] font-mono rounded">ИЛФ</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-3 text-xs font-mono text-emeraldneon">
+                                <span class="flex items-center"><i class="fa-solid fa-circle text-[8px] mr-1.5 animate-pulse"></i> СИМУЛЯЦИЯ АКТИВНА</span>
+                                <span>•</span>
+                                <span>КЕЙС №104</span>
+                            </div>
+                            <h2 class="text-2xl font-extrabold text-white mt-0.5">Кузнецов Валерий Алексеевич, 62 года</h2>
+                            <p class="text-xs text-slate-400 font-mono">Прогрессирующая одышка при физической нагрузке (mMRC Grade 3)</p>
+                        </div>
+                    </div>
+                    <!-- Clinical Score Display -->
+                    <div class="bg-slate-900/90 border border-slate-800 px-6 py-3 rounded-2xl flex items-center space-x-4">
+                        <div class="text-right">
+                            <div class="text-[10px] text-slate-400 uppercase font-mono tracking-wider">Clinical Score</div>
+                            <div id="case-score" class="text-2xl font-black text-emeraldneon font-mono">100 / 100</div>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-emeraldneon/10 border border-emeraldneon/30 text-emeraldneon flex items-center justify-center text-xl shadow-inner">
+                            <i class="fa-solid fa-heart-pulse"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- Stepper HUD Controls -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono text-xs">
+                    <button id="step-nav-1" onclick="goToCaseStep(1)" class="p-3 rounded-xl border flex items-center space-x-2 bg-emeraldneon text-slate-950 font-bold border-emeraldneon shadow-lg shadow-emeraldneon/20">
+                        <span class="w-5 h-5 rounded-full bg-slate-950/20 flex items-center justify-center text-[10px]">1</span>
+                        <span class="truncate">01. Анамнез & Осмотр</span>
+                    </button>
+                    <button id="step-nav-2" onclick="goToCaseStep(2)" class="p-3 rounded-xl border flex items-center space-x-2 bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700">
+                        <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">2</span>
+                        <span class="truncate">02. Назначения</span>
+                    </button>
+                    <button id="step-nav-3" onclick="goToCaseStep(3)" class="p-3 rounded-xl border flex items-center space-x-2 bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700">
+                        <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">3</span>
+                        <span class="truncate">03. ВРКТ & ФЖЕЛ</span>
+                    </button>
+                    <button id="step-nav-4" onclick="goToCaseStep(4)" class="p-3 rounded-xl border flex items-center space-x-2 bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700">
+                        <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">4</span>
+                        <span class="truncate">04. Диагноз & Терапия</span>
+                    </button>
+                    <button id="step-nav-5" onclick="goToCaseStep(5)" class="p-3 rounded-xl border flex items-center space-x-2 bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700 col-span-2 md:col-span-1">
+                        <span class="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">5</span>
+                        <span class="truncate">05. AI Evaluation</span>
+                    </button>
+                </div>
+                <!-- STEP 1: ANAMNESIS & PHYSICAL EXAM -->
+                <div id="step-content-1" class="step-panel space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        
+                        <!-- Vitals Monitors Column with Patient Physical Attributes -->
+                        <div class="lg:col-span-4 space-y-4">
+                            <div class="glass-panel p-5 rounded-2xl space-y-4 border border-slate-800">
+                                <h3 class="text-xs font-mono text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Монитор жизненных функций</span>
+                                    <span class="w-2 h-2 rounded-full bg-emeraldneon animate-pulse"></span>
+                                </h3>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+                                        <span class="text-[10px] text-slate-400 font-mono block">ЧДД (Дыхание)</span>
+                                        <span class="text-2xl font-black font-mono text-amber-400">24 <span class="text-xs text-slate-500 font-normal">/мин</span></span>
+                                    </div>
+                                    <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+                                        <span class="text-[10px] text-slate-400 font-mono block">SpO₂ (Воздух)</span>
+                                        <span class="text-2xl font-black font-mono text-red-400">91% <span class="text-xs text-slate-500 font-normal">гипоксия</span></span>
+                                    </div>
+                                    <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+                                        <span class="text-[10px] text-slate-400 font-mono block">Пульс / АД</span>
+                                        <span class="text-lg font-bold font-mono text-white">88 <span class="text-xs text-slate-500">| 135/85</span></span>
+                                    </div>
+                                    <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800">
+                                        <span class="text-[10px] text-slate-400 font-mono block">SpO₂ (6MWT)</span>
+                                        <span class="text-lg font-bold font-mono text-red-500">83% <span class="text-xs text-slate-500">десатурация</span></span>
+                                    </div>
+                                </div>
+                                <!-- Physical Inspection Photo Cards -->
+                                <div class="p-3.5 bg-slate-900/80 rounded-xl border border-slate-800 space-y-3">
+                                    <span class="text-xs font-bold text-white block border-b border-slate-800 pb-1.5">Объективный осмотр кистей:</span>
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-16 h-16 rounded-lg bg-slate-950 flex items-center justify-center border border-slate-800 overflow-hidden shrink-0">
+                                            <!-- Clubbing fingernails visual icon / image -->
+                                            <i class="fa-solid fa-hand text-2xl text-emeraldneon/80"></i>
+                                        </div>
+                                        <p class="text-xs text-slate-300 leading-relaxed">
+                                            Выраженные «пальцы гиппократа» (барабанные палочки) и ногти в форме «часовых стёкол». Цианоз ногтевых лож.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Anamnesis & Audio Wave Visualizer -->
+                        <div class="lg:col-span-8 space-y-6">
+                            <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                                    <i class="fa-solid fa-clipboard-user text-emeraldneon"></i>
+                                    <span>Анамнез заболевания</span>
+                                </h3>
+                                <p class="text-slate-300 text-sm leading-relaxed">
+                                    Пациент Кузнецов В.А., 62 года, инженер-технолог. Обратился с жалобами на одышку при ходьбе по ровной местности на расстояние более 100 метров, стойкий сухой непродуктивный кашель в течение 11 месяцев. Лечение бета-2-агонистами короткого действия без эффекта. В анамнезе: курение 15 пачка-лет (бросил 8 лет назад).
+                                </p>
+                            </div>
+                            <!-- Audio Waveform Auscultation Simulator -->
+                            <div class="glass-panel-glow p-6 rounded-2xl border border-emeraldneon/30 space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fa-solid fa-stethoscope text-emeraldneon text-lg"></i>
+                                        <h4 class="font-bold text-white text-sm">Аускультация (Базальные отделы лёгких)</h4>
+                                    </div>
+                                    <span class="text-[10px] font-mono text-cyantech bg-cyantech/10 px-2 py-0.5 rounded border border-cyantech/30">Звуковая волна Velcro</span>
+                                </div>
+                                <!-- Audio Wave Animation Visualizer -->
+                                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col items-center justify-center space-y-3">
+                                    <div class="w-full h-16 flex items-center justify-center space-x-1" id="waveform-container">
+                                        <div class="w-1.5 bg-emeraldneon/40 h-4 rounded-full transition-all"></div>
+                                        <div class="w-1.5 bg-emeraldneon/60 h-8 rounded-full transition-all"></div>
+                                        <div class="w-1.5 bg-emeraldneon h-14 rounded-full transition-all"></div>
+                                        <div class="w-1.5 bg-cyantech h-10 rounded-full transition-all"></div>
+                                        <div class="w-1.5 bg-emeraldneon/80 h-6 rounded-full transition-all"></div>
+                                        <div class="w-1.5 bg-emeraldneon/40 h-3 rounded-full transition-all"></div>
+                                    </div>
+                                    <button onclick="playVelcroSound()" class="px-6 py-2.5 rounded-xl bg-emeraldneon/20 hover:bg-emeraldneon/30 border border-emeraldneon/50 text-emeraldneon text-xs font-mono font-bold transition-all flex items-center space-x-2">
+                                        <i class="fa-solid fa-play"></i>
+                                        <span>Прослушать «Velcro»-крепитацию (звук "липучки")</span>
+                                    </button>
+                                </div>
+                                <p id="audio-desc" class="text-xs text-slate-400 font-mono text-center">Нажмите кнопку для прослушивания характерной трескучей крепитации на высоте вдоха.</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <button onclick="goToCaseStep(2)" class="px-6 py-3 rounded-xl bg-emeraldneon text-slate-950 font-bold text-sm shadow-lg shadow-emeraldneon/20 hover:bg-emeraldneon/90 transition-all flex items-center space-x-2">
+                                    <span>Перейти к Назначениям</span>
+                                    <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- STEP 2: DIAGNOSTIC ORDERS -->
+                <div id="step-content-2" class="step-panel hidden space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                        <div>
+                            <h3 class="text-xl font-bold text-white">Выбор диагностической панели</h3>
+                            <p class="text-slate-400 text-xs mt-1">Выберите обследования для подтверждения гипотезы ИЛФ и дифференциальной диагностики.</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="hud-test-grid">
+                            <label class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emeraldneon/50 cursor-pointer transition-all flex items-start space-x-3">
+                                <input type="checkbox" value="spiro" class="mt-1 accent-emeraldneon w-4 h-4">
+                                <div>
+                                    <span class="text-sm font-bold text-white block">Спирометрия + DLCO (Диффузия)</span>
+                                    <span class="text-xs text-slate-400">Оценка рестрикции и диффузионной способности легких через альвеолярную мембрану.</span>
+                                </div>
+                            </label>
+                            <label class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emeraldneon/50 cursor-pointer transition-all flex items-start space-x-3">
+                                <input type="checkbox" value="hrct" class="mt-1 accent-emeraldneon w-4 h-4">
+                                <div>
+                                    <span class="text-sm font-bold text-white block">ВРКТ ОГК (Высокое разрешение)</span>
+                                    <span class="text-xs text-slate-400">Визуализация «сотового лёгкого», субплеврального фиброза и тракционных бронхоэктазов.</span>
+                                </div>
+                            </label>
+                            <label class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emeraldneon/50 cursor-pointer transition-all flex items-start space-x-3">
+                                <input type="checkbox" value="gas" class="mt-1 accent-emeraldneon w-4 h-4">
+                                <div>
+                                    <span class="text-sm font-bold text-white block">Газы артериальной крови (АГК)</span>
+                                    <span class="text-xs text-slate-400">Оценка PaO2, PaCO2 и альвеолярно-артериального градиента в покое и при нагрузке.</span>
+                                </div>
+                            </label>
+                            <label class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emeraldneon/50 cursor-pointer transition-all flex items-start space-x-3">
+                                <input type="checkbox" value="echo" class="mt-1 accent-emeraldneon w-4 h-4">
+                                <div>
+                                    <span class="text-sm font-bold text-white block">ЭхоКГ (Эхокардиография)</span>
+                                    <span class="text-xs text-slate-400">Оценка давления в легочной артерии и исключение легочной гипертензии.</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div id="order-validation" class="hidden p-4 rounded-xl text-xs font-mono"></div>
+                        <div class="flex justify-between items-center pt-4 border-t border-slate-800">
+                            <button onclick="goToCaseStep(1)" class="px-4 py-2 text-slate-400 hover:text-white text-xs font-mono">Назад</button>
+                            <button onclick="validateDiagnosticOrders()" class="px-6 py-3 rounded-xl bg-emeraldneon text-slate-950 font-bold text-sm shadow-lg shadow-emeraldneon/20 hover:bg-emeraldneon/90 transition-all flex items-center space-x-2">
+                                <span>Получить данные ВРКТ и ФЖЕЛ</span>
+                                <i class="fa-solid fa-microscope"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- STEP 3: INTERPRETATION (HRCT & SPIROMETRY) -->
+                <div id="step-content-3" class="step-panel hidden space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        <!-- Spirometry Interactive Chart Panel -->
+                        <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-white text-sm flex items-center space-x-2">
+                                    <i class="fa-solid fa-chart-line text-cyantech"></i>
+                                    <span>Спирометрическая кривая (Поток-Объём)</span>
+                                </h4>
+                                <span class="text-[10px] font-mono bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">Рестриктивный тип</span>
+                            </div>
+                            <!-- Chart.js Canvas -->
+                            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 h-60 relative">
+                                <canvas id="neoSpiroChart"></canvas>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 font-mono text-center text-xs">
+                                <div class="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                                    <span class="text-slate-500 text-[10px] block">ФЖЕЛ (FVC)</span>
+                                    <span class="text-red-400 font-bold">52% <span class="text-[9px] text-slate-500">долж.</span></span>
+                                </div>
+                                <div class="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                                    <span class="text-slate-500 text-[10px] block">ОФВ1 / ФЖЕЛ</span>
+                                    <span class="text-emeraldneon font-bold">84% <span class="text-[9px] text-slate-500">сохранено</span></span>
+                                </div>
+                                <div class="bg-slate-900 p-2 rounded-lg border border-slate-800">
+                                    <span class="text-slate-500 text-[10px] block">DLCO</span>
+                                    <span class="text-red-400 font-bold">39% <span class="text-[9px] text-slate-500">тяжёлое↓</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- HRCT Slice Image Viewer -->
+                        <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-white text-sm flex items-center space-x-2">
+                                    <i class="fa-solid fa-layer-group text-emeraldneon"></i>
+                                    <span>ВРКТ ОГК — Срезы паренхимы легких</span>
+                                </h4>
+                                <span class="text-[10px] font-mono bg-emeraldneon/20 text-emeraldneon px-2 py-0.5 rounded border border-emeraldneon/30">Паттерн ОИП / UIP</span>
+                            </div>
+                            <!-- Interactive CT Graphic Container -->
+                            <div class="bg-black rounded-xl p-4 border border-slate-800 flex flex-col items-center justify-center space-y-3 relative h-60 overflow-hidden">
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <!-- High Resolution CT Image Illustration -->
+                                    <svg viewBox="0 0 300 180" class="w-full h-full">
+                                        <rect width="300" height="180" fill="#030712"/>
+                                        <ellipse cx="150" cy="90" rx="130" ry="75" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>
+                                        <ellipse cx="95" cy="90" rx="42" ry="58" fill="#020617" stroke="#334155" stroke-width="1.5"/>
+                                        <ellipse cx="205" cy="90" rx="42" ry="58" fill="#020617" stroke="#334155" stroke-width="1.5"/>
+                                        <!-- Honeycombing & Reticulation -->
+                                        <g stroke="#10b981" stroke-width="1.2" opacity="0.85" fill="none">
+                                            <path d="M 60,110 Q 70,135 95,140 Q 115,135 120,110"/>
+                                            <path d="M 180,110 Q 190,135 205,140 Q 225,135 235,110"/>
+                                            <circle cx="72" cy="122" r="3.5" stroke-dasharray="1,1"/>
+                                            <circle cx="82" cy="130" r="4" stroke-dasharray="1,1"/>
+                                            <circle cx="218" cy="122" r="3.5" stroke-dasharray="1,1"/>
+                                            <circle cx="228" cy="130" r="4" stroke-dasharray="1,1"/>
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="absolute bottom-2 left-2 right-2 bg-slate-900/90 border border-slate-800 p-2 rounded text-[10px] font-mono text-emeraldneon flex justify-between">
+                                    <span>Срез: Базально-субплевральный</span>
+                                    <span>Признак: «Сотовое лёгкое» + тракции</span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-slate-400">
+                                <strong>Радиологическое заключение:</strong> Двусторонние субплевральные кистозные просветления («соты») и тракционные бронхоэктазы. Паттерн Обычной Интерстициальной Пневмонии (ОИП / UIP).
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center pt-4 border-t border-slate-800">
+                        <button onclick="goToCaseStep(2)" class="px-4 py-2 text-slate-400 hover:text-white text-xs font-mono">Назад</button>
+                        <button onclick="goToCaseStep(4)" class="px-6 py-3 rounded-xl bg-emeraldneon text-slate-950 font-bold text-sm shadow-lg shadow-emeraldneon/20 hover:bg-emeraldneon/90 transition-all flex items-center space-x-2">
+                            <span>Принять решение по Диагнозу</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- STEP 4: DIFFERENTIAL DIAGNOSIS & THERAPY -->
+                <div id="step-content-4" class="step-panel hidden space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-6">
+                        <h3 class="text-xl font-bold text-white">Постановка клинического диагноза и назначение лечения</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Diagnosis Selector -->
+                            <div class="space-y-3">
+                                <label class="text-xs font-mono text-emeraldneon uppercase block">1. Заключительный диагноз:</label>
+                                <select id="neo-diagnosis" class="w-full p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-white text-sm focus:border-emeraldneon focus:outline-none">
+                                    <option value="">-- Выберите диагноз --</option>
+                                    <option value="ipf">Идиопатический легочный фиброз (ИЛФ)</option>
+                                    <option value="copd">Обострение ХОБЛ среднетяжёлое</option>
+                                    <option value="nsip">Неспецифическая интерстициальная пневмония (НСИП)</option>
+                                    <option value="sarcoidosis">Саркоидоз легких II стадии</option>
+                                </select>
+                            </div>
+                            <!-- Treatment Selector -->
+                            <div class="space-y-3">
+                                <label class="text-xs font-mono text-emeraldneon uppercase block">2. Терапевтическая стратегия:</label>
+                                <div class="space-y-2 text-xs">
+                                    <label class="p-3 bg-slate-900 rounded-xl border border-slate-800 hover:border-emeraldneon/50 cursor-pointer flex items-center space-x-3">
+                                        <input type="radio" name="neo-treatment" value="antifibrotic" class="accent-emeraldneon">
+                                        <span class="text-slate-200">Антифибротическая терапия (Нинтеданиб или Пирфенидон)</span>
+                                    </label>
+                                    <label class="p-3 bg-slate-900 rounded-xl border border-slate-800 hover:border-emeraldneon/50 cursor-pointer flex items-center space-x-3">
+                                        <input type="radio" name="neo-treatment" value="ics" class="accent-emeraldneon">
+                                        <span class="text-slate-200">Высокие дозы Ингаляционных ГКС + ДДБА</span>
+                                    </label>
+                                    <label class="p-3 bg-slate-900 rounded-xl border border-slate-800 hover:border-emeraldneon/50 cursor-pointer flex items-center space-x-3">
+                                        <input type="radio" name="neo-treatment" value="antibiotic" class="accent-emeraldneon">
+                                        <span class="text-slate-200">Системная антибактериальная терапия</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <p id="neo-decision-error" class="hidden text-xs font-mono text-amber-400">Выберите диагноз и тактику лечения.</p>
+                        <div class="pt-4 border-t border-slate-800 flex justify-end">
+                            <button onclick="evaluateNeoCase()" class="px-8 py-4 rounded-xl bg-gradient-to-r from-emeraldneon via-cyantech to-skytech text-slate-950 font-extrabold text-sm shadow-xl shadow-emeraldneon/20 hover:opacity-90 transition-all flex items-center space-x-2">
+                                <i class="fa-solid fa-brain"></i>
+                                <span>Запустить AI-Оценку решения</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- STEP 5: AI EVALUATION & DECISION SUPPORT -->
+                <div id="step-content-5" class="step-panel hidden space-y-6">
+                    <div id="ai-result-card" class="glass-panel p-8 rounded-2xl border border-slate-800 space-y-6">
+                        <div class="text-center py-10 space-y-3">
+                            <i class="fa-solid fa-microchip text-4xl text-slate-600 animate-pulse"></i>
+                            <p class="text-slate-400 text-sm">Ожидание отправки данных решения...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ==================== TAB 3: HRCT ATLAS & PATTERN LIBRARY ==================== -->
+        <section id="view-library" class="view-section hidden py-10">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-white">Атлас ВРКТ и Пульмонологических Паттернов</h2>
+                    <p class="text-slate-400 text-sm">Галерея снимков и эталонных изменений паренхимы легких</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Pattern Card 1 -->
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <div class="relative h-48 rounded-xl overflow-hidden border border-slate-800">
+                            <img src="https://images.unsplash.com/photo-1516549655169-df83a0774514?w=500&auto=format&fit=crop&q=80" 
+                                 alt="Сотовое легкое" 
+                                 class="w-full h-full object-cover filter brightness-90 contrast-125"
+                                 onerror="this.src='https://placehold.co/500x300/020617/10b981?text=ВРКТ+Сотовое+Легкое'">
+                            <span class="text-xs font-mono text-emeraldneon absolute top-3 left-3 bg-slate-950/80 backdrop-blur px-2.5 py-1 rounded border border-emeraldneon/30">Паттерн ОИП / UIP</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-white text-base">Сотовая деструкция («Сотовое лёгкое»)</h4>
+                            <p class="text-slate-400 text-xs mt-1 leading-relaxed">
+                                Кластерные кистозные воздушные полости (3-10 мм) с утолщенными стенками в субплевральных и базальных отделах. Патогномоничный признак ИЛФ.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Pattern Card 2 -->
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <div class="relative h-48 rounded-xl overflow-hidden border border-slate-800">
+                            <img src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=500&auto=format&fit=crop&q=80" 
+                                 alt="Матовое стекло" 
+                                 class="w-full h-full object-cover filter brightness-90 contrast-125"
+                                 onerror="this.src='https://placehold.co/500x300/020617/06b6d4?text=Матовое+Стекло'">
+                            <span class="text-xs font-mono text-cyantech absolute top-3 left-3 bg-slate-950/80 backdrop-blur px-2.5 py-1 rounded border border-cyantech/30">Ground-Glass Opacity</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-white text-base">Симптом «Матового стекла»</h4>
+                            <p class="text-slate-400 text-xs mt-1 leading-relaxed">
+                                Умеренное снижение прозрачности легочной ткани с сохранением видимости сосудистого рисунка. Признак активного альвеолита или НСИП.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Pattern Card 3 -->
+                    <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+                        <div class="relative h-48 rounded-xl overflow-hidden border border-slate-800">
+                            <img src="https://images.unsplash.com/photo-1530497610245-94d3c16cda28?w=500&auto=format&fit=crop&q=80" 
+                                 alt="Эмфизема" 
+                                 class="w-full h-full object-cover filter brightness-90 contrast-125"
+                                 onerror="this.src='https://placehold.co/500x300/020617/0ea5e9?text=Центрилобулярная+Эмфизема'">
+                            <span class="text-xs font-mono text-skytech absolute top-3 left-3 bg-slate-950/80 backdrop-blur px-2.5 py-1 rounded border border-skytech/30">ХОБЛ / Emphysema</span>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-white text-base">Центрилобулярная эмфизема</h4>
+                            <p class="text-slate-400 text-xs mt-1 leading-relaxed">
+                                Деструкция стенки респираторных бронхиол с образованием бестенных участков гиподенсности в верхних долях у курильщиков.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ==================== TAB 4: USER PROFILE & PROGRESS ==================== -->
+        <section id="view-profile" class="view-section hidden py-10">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+                <div class="glass-panel-glow p-8 rounded-3xl space-y-6">
+                    <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 text-center sm:text-left">
+                        <div class="relative">
+                            <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&auto=format&fit=crop&q=80" 
+                                 alt="Доктор Клиницист" 
+                                 class="w-24 h-24 rounded-2xl object-cover border-2 border-emeraldneon shadow-xl shadow-emeraldneon/20"
+                                 onerror="this.src='https://placehold.co/300x300/0f172a/10b981?text=Врач'">
+                            <span class="absolute -bottom-2 -right-2 bg-emeraldneon text-slate-950 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border-2 border-slate-900">PRO</span>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Доктор В.Р. Клиницист</h2>
+                            <p class="text-slate-400 text-xs font-mono mt-0.5">Врач-пульмонолог • Ординатура II года • ID: #88492</p>
+                            <span class="inline-block mt-2 px-3 py-1 bg-emeraldneon/10 text-emeraldneon border border-emeraldneon/30 text-xs font-mono rounded-full">Точность решений: 94%</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-slate-800 pt-6">
+                        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-center">
+                            <span class="text-xs text-slate-500 font-mono block">Кейсов решено</span>
+                            <span class="text-2xl font-black text-white font-mono">18</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-center">
+                            <span class="text-xs text-slate-500 font-mono block">Средний Score</span>
+                            <span class="text-2xl font-black text-emeraldneon font-mono">94 / 100</span>
+                        </div>
+                        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-center">
+                            <span class="text-xs text-slate-500 font-mono block">Ранг в системе</span>
+                            <span class="text-2xl font-black text-cyantech font-mono">TOP 5%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <!-- FOOTER -->
+    <footer class="bg-slate-950 border-t border-slate-800 py-8 text-xs text-slate-500 font-mono">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-2">
+                <span class="text-white font-bold font-sans">PulmoAI</span>
+                <span>• Medical Tech Simulator v2.5</span>
+            </div>
+            <div>
+                <span>Соответствие клиническим рекомендациям GOLD / ATS / ERS Guidelines</span>
+            </div>
+        </div>
+    </footer>
+    <!-- LOGIC JAVASCRIPT -->
+    <script>
+        let neoSpiroInstance = null;
+        function switchTab(tabId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            
+            const target = document.getElementById(`view-${tabId}`);
+            if (target) target.classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-emeraldneon', 'bg-slate-800', 'border', 'border-emeraldneon/30');
+                btn.classList.add('text-slate-400');
+            });
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-400');
+                activeBtn.classList.add('text-emeraldneon', 'bg-slate-800', 'border', 'border-emeraldneon/30');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        function startSimulatedCase(caseType) {
+            switchTab('case');
+            goToCaseStep(1);
+        }
+        function goToCaseStep(step) {
+            document.querySelectorAll('.step-panel').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(`step-content-${step}`);
+            if (target) target.classList.remove('hidden');
+            for (let i = 1; i <= 5; i++) {
+                const nav = document.getElementById(`step-nav-${i}`);
+                if (nav) {
+                    if (i === step) {
+                        nav.className = "p-3 rounded-xl border flex items-center space-x-2 bg-emeraldneon text-slate-950 font-bold border-emeraldneon shadow-lg shadow-emeraldneon/20";
+                    } else {
+                        nav.className = "p-3 rounded-xl border flex items-center space-x-2 bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700";
+                    }
+                }
+            }
+            if (step === 3) {
+                setTimeout(initNeoSpirometryChart, 100);
+            }
+        }
+        function playVelcroSound() {
+            const desc = document.getElementById('audio-desc');
+            desc.innerText = "Воспроизведение: Высокочастотная мелкая крепитация («липучка»)...";
+            desc.classList.add('text-emeraldneon');
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const bufferSize = ctx.sampleRate * 1.2;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() > 0.94) ? (Math.random() * 2 - 1) : 0;
+                }
+                const src = ctx.createBufferSource();
+                src.buffer = buffer;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1100;
+                src.connect(filter);
+                filter.connect(ctx.destination);
+                src.start();
+                setTimeout(() => {
+                    desc.innerText = "Нажмите кнопку для повторного воспроизведения.";
+                    desc.classList.remove('text-emeraldneon');
+                }, 1500);
+            } catch(e) {
+                console.log(e);
+            }
+        }
+        function validateDiagnosticOrders() {
+            const selected = Array.from(document.querySelectorAll('#hud-test-grid input:checked')).map(cb => cb.value);
+            const box = document.getElementById('order-validation');
+            box.classList.remove('hidden');
+            if (selected.includes('spiro') && selected.includes('hrct')) {
+                box.className = "p-4 rounded-xl text-xs font-mono bg-emeraldneon/10 text-emeraldneon border border-emeraldneon/30";
+                box.innerHTML = "<i class='fa-solid fa-check-circle mr-1'></i> [Утверждено]: Спирометрия и ВРКТ — 'золотой стандарт' для подтверждения ИЛФ.";
+                setTimeout(() => goToCaseStep(3), 1000);
+            } else {
+                box.className = "p-4 rounded-xl text-xs font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30";
+                box.innerHTML = "<i class='fa-solid fa-triangle-exclamation mr-1'></i> [Предупреждение]: Необходимы и Спирометрия, и ВРКТ ОГК.";
+            }
+        }
+        function initNeoSpirometryChart() {
+            const ctx = document.getElementById('neoSpiroChart');
+            if (!ctx) return;
+            if (neoSpiroInstance) neoSpiroInstance.destroy();
+            neoSpiroInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
+                    datasets: [
+                        {
+                            label: 'Норма',
+                            data: [0, 8.0, 6.8, 5.0, 3.2, 1.8, 0.5, 0],
+                            borderColor: '#64748b',
+                            borderDash: [4, 4],
+                            borderWidth: 1.5,
+                            fill: false
+                        },
+                        {
+                            label: 'Пациент Кузнецов В.А. (Рестрикция)',
+                            data: [0, 4.2, 3.1, 1.8, 0.5, 0],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: { size: 10 } } }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } },
+                        y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }
+                    }
+                }
+            });
+        }
+        function evaluateNeoCase() {
+            const diag = document.getElementById('neo-diagnosis').value;
+            const treat = document.querySelector('input[name="neo-treatment"]:checked')?.value;
+            const resCard = document.getElementById('ai-result-card');
+            const errorEl = document.getElementById('neo-decision-error');
+            if (!diag || !treat) { errorEl.classList.remove('hidden'); return; }
+            errorEl.classList.add('hidden');
+            goToCaseStep(5);
+            const diagOk = diag === 'ipf';
+            const treatOk = treat === 'antifibrotic';
+            const score = diagOk && treatOk ? 100 : (diagOk || treatOk ? 65 : 30);
+            const errors = [];
+            if (!diagOk) errors.push('Диагноз выбран неверно: крепитация «липучка», паттерн ОИП на ВРКТ и рестрикция со снижением DLCO указывают на ИЛФ.');
+            if (treat === 'ics') errors.push('ИГКС противопоказаны при ИЛФ (увеличивают летальность).');
+            if (treat === 'antibiotic') errors.push('Антибиотики не показаны при отсутствии бактериальной инфекции.');
+            if (diagOk && treatOk) {
+                resCard.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3 text-emeraldneon">
+                            <i class="fa-solid fa-circle-check text-3xl"></i>
+                            <div>
+                                <h3 class="text-xl font-bold font-mono">ЭТАЛОННОЕ КЛИНИЧЕСКОЕ РЕШЕНИЕ (100/100)</h3>
+                                <p class="text-xs text-slate-400">Соответствует гайдлайнам ATS/ERS/JRS/ALAT</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-3 text-sm text-slate-300">
+                            <p><strong>Диагноз:</strong> Идиопатический легочный фиброз (ИЛФ). Подтверждается паттерном ОИП на ВРКТ («соты»), снижением DLCO (39%) и отсутствием других причин фиброза.</p>
+                            <p><strong>Терапия:</strong> Назначение антифибротиков (Нинтеданиб / Пирфенидон) является единственной доказанной стратегией замедления прогрессирования заболевания.</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                resCard.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3 text-amber-400">
+                            <i class="fa-solid fa-triangle-exclamation text-3xl"></i>
+                            <div>
+                                <h3 class="text-xl font-bold font-mono">ТРЕБУЕТСЯ КОРРЕКЦИЯ ТАКТИКИ (${score}/100)</h3>
+                                <p class="text-xs text-slate-400">Допущены отклонения от международных стандартов</p>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 space-y-3 text-sm text-slate-300">
+                            <p><strong>Правильный диагноз:</strong> Идиопатический легочный фиброз (ИЛФ).</p>
+                            <p><strong>Ошибки:</strong> ${errors.join(' ')}</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
