@@ -18,9 +18,10 @@ const DAILY_LIMIT = 20;
 // не совпало с другим использованием pg_advisory_lock в проекте), второе — hashtext(userId).
 const LOCK_NAMESPACE = 2147300001;
 
-// Клиент присылает только id своей попытки. Ответы, текст кейса и балл сервер
-// берёт из БД и своих данных — в промпт не попадает произвольный ввод.
-const RequestSchema = z.object({ attemptId: z.uuid() });
+// Клиент присылает id своей попытки и, опционально, свободную формулировку диагноза,
+// которую студент пишет сам на экране разбора. Ответы, текст кейса и балл сервер всё
+// равно берёт из БД и своих данных — доверяем только этому одному текстовому полю.
+const RequestSchema = z.object({ attemptId: z.uuid(), diagnosisNote: z.string().trim().max(600).optional() });
 
 function error(status: number, message: string) {
   return Response.json({ error: message }, { status });
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
           betas: ["server-side-fallback-2026-07-01"],
           fallbacks: "default",
           system: reviewSystemPrompt(locale),
-          messages: [{ role: "user", content: buildReviewPrompt(clinicalCase, result, locale) }],
+          messages: [{ role: "user", content: buildReviewPrompt(clinicalCase, result, locale, parsed.data.diagnosisNote) }],
           output_config: { format: betaZodOutputFormat(ReviewSchema) },
         });
 

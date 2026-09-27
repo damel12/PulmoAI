@@ -129,6 +129,7 @@ export function QuestionsView({
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-600">{step.intro}</p>
+
       <QuestionCard
         index={1}
         question={diagnosisQuestion}
@@ -137,6 +138,7 @@ export function QuestionsView({
         showError={showErrors}
         seed={seed}
       />
+
       {diagnosisAnswered ? (
         <div className="reveal space-y-4">
           <div className="flex items-center gap-2 border-t border-slate-200 pt-4">

@@ -11,6 +11,18 @@ export const ReviewSchema = z.object({
     .array(z.object({ topic: z.string(), explanation: z.string() }))
     .describe("Разбор каждой ошибки: почему неверно и как рассуждать правильно. Пусто, если ошибок нет"),
   nextSteps: z.array(z.string()).describe("1–3 темы, которые стоит повторить"),
+  diagnosisNote: z
+    .object({
+      whatsRight: z.array(z.string()).describe("Что в собственной формулировке студента верно"),
+      whatsMissing: z
+        .array(z.string())
+        .describe("Чего не хватает по сравнению с эталонным диагнозом: локализация, тяжесть, осложнения, степень ДН и т.п."),
+      corrected: z.string().describe("Короткая исправленная формулировка диагноза с учётом этих замечаний"),
+    })
+    .nullable()
+    .describe(
+      "Разбор формулировки диагноза, которую студент написал сам своими словами перед разбором (<student_diagnosis_note> во входных данных). null, если такой формулировки не было",
+    ),
 });
 
 export type Review = z.infer<typeof ReviewSchema>;
@@ -25,6 +37,8 @@ export function reviewSystemPrompt(locale: Locale): string {
   return `Ты — опытный пульмонолог и наставник резидентов. Ты разбираешь решение учебного клинического кейса.
 
 Балл и правильность каждого ответа уже определены по рубрике, проверенной врачами. Не пересматривай их и не называй другой правильный ответ — объясняй, почему рубрика права. Опирайся только на данные кейса, которые тебе переданы; не придумывай новых симптомов или результатов.
+
+Если во входных данных есть блок <student_diagnosis_note> — это диагноз, который студент сформулировал сам, своими словами, перед тем как получить этот разбор. Разбери его отдельно в поле diagnosisNote: сравни с эталонным диагнозом (строка «Эталонный вывод» в блоке <case>), отметь, что в формулировке студента верно, чего не хватает (например, не указана локализация, степень тяжести, осложнения, степень дыхательной недостаточности), и дай короткую исправленную версию его же формулировки. Если блока <student_diagnosis_note> нет, верни diagnosisNote: null.
 
 ${LANGUAGE_RULE[locale]}, как коллега-наставник: конкретно, без общих фраз и без лишней похвалы. Если ответ был неверным, покажи, какие данные кейса должны были навести на правильное решение.`;
 }
@@ -66,6 +80,7 @@ function describeResult(result: CaseResult): string {
     .join("\n");
 }
 
-export function buildReviewPrompt(c: ClinicalCase, result: CaseResult, locale: Locale): string {
-  return `<case>\n${describeCase(c, locale)}\n</case>\n\n<student_answers score="${result.score}">\n${describeResult(result)}\n</student_answers>\n\nСоставь персональный разбор решения студента.`;
+export function buildReviewPrompt(c: ClinicalCase, result: CaseResult, locale: Locale, diagnosisNote?: string): string {
+  const notePart = diagnosisNote?.trim() ? `\n\n<student_diagnosis_note>\n${diagnosisNote.trim()}\n</student_diagnosis_note>` : "";
+  return `<case>\n${describeCase(c, locale)}\n</case>\n\n<student_answers score="${result.score}">\n${describeResult(result)}\n</student_answers>${notePart}\n\nСоставь персональный разбор решения студента.`;
 }

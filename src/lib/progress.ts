@@ -68,3 +68,30 @@ export function subscribeAttempts(onChange: () => void): () => void {
     window.removeEventListener("storage", onChange);
   };
 }
+
+// Собственная формулировка диагноза студентом на экране «Разбор», до запроса ИИ-разбора.
+// sessionStorage, а не localStorage: черновик нужен только чтобы пережить переход на
+// страницу входа и обратно, после реального запроса разбора он больше не нужен.
+function noteKey(attemptId: string): string {
+  return `pulmoai.diagnosisNote.${attemptId}`;
+}
+
+export function loadDiagnosisNote(attemptId: string): string {
+  try {
+    return window.sessionStorage.getItem(noteKey(attemptId)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveDiagnosisNote(attemptId: string, note: string): void {
+  try {
+    window.sessionStorage.setItem(noteKey(attemptId), note);
+  } catch {}
+}
+
+export function clearDiagnosisNote(attemptId: string): void {
+  try {
+    window.sessionStorage.removeItem(noteKey(attemptId));
+  } catch {}
+}

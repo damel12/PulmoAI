@@ -9,7 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { getCases } from "@/lib/cases";
 import type { ClinicalCase } from "@/lib/cases/types";
 import type { Dict } from "@/lib/i18n/dictionaries";
-import type { Attempt } from "@/lib/progress";
+import { clearDiagnosisNote, loadDiagnosisNote, saveDiagnosisNote, type Attempt } from "@/lib/progress";
 import { loginHref } from "@/lib/redirect";
 import type { Review } from "@/lib/review";
 import type { CaseResult, QuestionResult, Verdict } from "@/lib/scoring";
@@ -57,7 +57,14 @@ export function ResultView({
   const loggedIn = Boolean(session);
   const [review, setReview] = useState<ReviewState>({ status: "idle" });
   const [save, setSave] = useState<SaveState>("idle");
+  const [note, setNote] = useState("");
+  const [noteError, setNoteError] = useState(false);
   const autoStarted = useRef(false);
+
+  // Черновик формулировки диагноза переживает переход на страницу входа и обратно.
+  useEffect(() => {
+    setNote(loadDiagnosisNote(attempt.id));
+  }, [attempt.id]);
   const resultPath = `/cases/${clinicalCase.slug}?attempt=${attempt.id}`;
   const cases = getCases(locale);
   const nextCase = cases[cases.findIndex((c) => c.slug === clinicalCase.slug) + 1];
@@ -76,7 +83,13 @@ export function ResultView({
   }, [loggedIn, attempt]);
 
   const requestReview = useCallback(async () => {
+    if (!note.trim()) {
+      setNoteError(true);
+      return;
+    }
+    setNoteError(false);
     if (!loggedIn) {
+      saveDiagnosisNote(attempt.id, note);
       router.push(loginHref(`${resultPath}&review=1`));
       return;
     }
@@ -85,19 +98,21 @@ export function ResultView({
       const res = await fetch("/api/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attemptId: attempt.id }),
+        body: JSON.stringify({ attemptId: attempt.id, diagnosisNote: note.trim() }),
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 401) {
+        saveDiagnosisNote(attempt.id, note);
         router.push(loginHref(`${resultPath}&review=1`));
         return;
       }
       if (!res.ok) throw new Error(body.error ?? t.result.aiFailed);
+      clearDiagnosisNote(attempt.id);
       setReview({ status: "done", review: body.review });
     } catch (err) {
       setReview({ status: "error", message: err instanceof Error ? err.message : t.result.aiFailed });
     }
-  }, [loggedIn, router, resultPath, attempt.id, t]);
+  }, [loggedIn, router, resultPath, attempt.id, note, t]);
 
   // Разбор после возврата со входа: ждём, пока попытка сохранится в аккаунте.
   useEffect(() => {
@@ -153,29 +168,42 @@ export function ResultView({
       </div>
 
       <div className="rounded-2xl border border-sky/40 bg-sky-light p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 font-heading text-base font-bold text-ink">
-              <Sparkles className="h-4 w-4 text-sky-dark" aria-hidden /> {t.result.aiTitle}
-            </h2>
-            <p className="text-sm text-slate-600">
-              {loggedIn || isPending
-                ? t.result.aiDescription
-                : t.result.aiDescriptionGuest}
-            </p>
-          </div>
-          {review.status !== "done" && (
+        <h2 className="flex items-center gap-2 font-heading text-base font-bold text-ink">
+          <Sparkles className="h-4 w-4 text-sky-dark" aria-hidden /> {t.result.aiTitle}
+        </h2>
+        <p className="text-sm text-slate-600">
+          {loggedIn || isPending ? t.result.aiDescription : t.result.aiDescriptionGuest}
+        </p>
+
+        {review.status !== "done" && (
+          <div className="mt-4">
+            <label htmlFor="diagnosis-note" className="text-sm font-bold text-ink">
+              {t.result.diagnosisNoteAsk}
+            </label>
+            <p className="mb-2 mt-1 text-xs text-slate-500">{t.result.diagnosisNoteAskHint}</p>
+            <textarea
+              id="diagnosis-note"
+              rows={3}
+              maxLength={600}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={t.result.diagnosisNoteAskPlaceholder}
+              className={`w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-sky/20 ${
+                noteError ? "border-rose-300" : "border-slate-300 focus:border-sky"
+              }`}
+            />
+            {noteError && <p className="mt-2 text-xs font-semibold text-rose-600">{t.result.diagnosisNoteAskRequired}</p>}
             <button
               type="button"
               onClick={requestReview}
               disabled={review.status === "loading" || isPending || (loggedIn && save === "saving")}
-              className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-sky px-5 py-2.5 text-sm font-bold text-white hover:bg-sky-dark disabled:opacity-70"
+              className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-sky px-5 py-2.5 text-sm font-bold text-white hover:bg-sky-dark disabled:opacity-70"
             >
               {review.status === "loading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {review.status === "loading" ? t.result.aiLoading : loggedIn || isPending ? t.result.aiGet : t.result.aiLoginGet}
             </button>
-          )}
-        </div>
+          </div>
+        )}
         {review.status === "error" && (
           <p className="mt-3 rounded-xl bg-white p-3 text-sm text-rose-700" role="alert">
             {review.message}
@@ -246,6 +274,37 @@ function AiReview({ review, t }: { review: Review; t: Dict }) {
   return (
     <div className="mt-4 space-y-4 rounded-xl bg-white p-4 text-sm leading-relaxed text-slate-700">
       <p>{review.summary}</p>
+      {review.diagnosisNote && (
+        <div className="rounded-xl border border-sky/30 bg-sky-light/50 p-3">
+          <h3 className="font-semibold text-sky-dark">{t.result.diagnosisNoteTitle}</h3>
+          {review.diagnosisNote.whatsRight.length > 0 && (
+            <>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                {t.result.diagnosisNoteRight}
+              </p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {review.diagnosisNote.whatsRight.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {review.diagnosisNote.whatsMissing.length > 0 && (
+            <>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                {t.result.diagnosisNoteMissing}
+              </p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {review.diagnosisNote.whatsMissing.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-ink">{t.result.diagnosisNoteCorrected}</p>
+          <p className="mt-1">{review.diagnosisNote.corrected}</p>
+        </div>
+      )}
       {review.strengths.length > 0 && (
         <div>
           <h3 className="font-semibold text-emerald-800">{t.result.strengths}</h3>
