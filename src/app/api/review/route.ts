@@ -1,5 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import OpenAI from "openai";
+import { LengthFinishReasonError } from "openai/error";
+import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { getAttempt, getCachedReview, reviewsInLastDay, saveReview } from "@/lib/attempts-db";
 import { getCase } from "@/lib/cases";
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
   const cached = await getCachedReview(attempt.id, locale);
   if (cached) return Response.json({ review: cached });
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return error(503, e.notConfigured);
   }
 
@@ -68,32 +69,31 @@ export async function POST(request: Request) {
       }
 
       const result = scoreCase(clinicalCase, attempt.answers);
-      const client = new Anthropic();
+      const client = new OpenAI();
 
       try {
-        const response = await client.beta.messages.parse({
-          model: process.env.PULMOAI_MODEL || "claude-opus-5",
-          max_tokens: 16000,
-          thinking: { type: "adaptive" },
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-          system: reviewSystemPrompt(locale),
-          messages: [{ role: "user", content: buildReviewPrompt(clinicalCase, result, locale, parsed.data.diagnosisNote) }],
-          output_config: { format: betaZodOutputFormat(ReviewSchema) },
+        const completion = await client.chat.completions.parse({
+          model: process.env.PULMOAI_MODEL || "gpt-5.5",
+          max_completion_tokens: 4096,
+          messages: [
+            { role: "system", content: reviewSystemPrompt(locale) },
+            { role: "user", content: buildReviewPrompt(clinicalCase, result, locale, parsed.data.diagnosisNote) },
+          ],
+          response_format: zodResponseFormat(ReviewSchema, "review"),
         });
 
-        if (response.stop_reason === "refusal") return error(502, e.refusal);
-        if (response.stop_reason === "max_tokens" || !response.parsed_output) {
-          return error(502, e.incomplete);
-        }
-        await saveReview(session.user.id, attempt.id, locale, response.parsed_output);
-        return Response.json({ review: response.parsed_output });
+        const message = completion.choices[0].message;
+        if (message.refusal) return error(502, e.refusal);
+        if (!message.parsed) return error(502, e.incomplete);
+        await saveReview(session.user.id, attempt.id, locale, message.parsed);
+        return Response.json({ review: message.parsed });
       } catch (err) {
-        if (err instanceof Anthropic.AuthenticationError) return error(503, e.badKey);
-        if (err instanceof Anthropic.RateLimitError) return error(429, e.rateLimit);
-        if (err instanceof Anthropic.APIConnectionError) return error(502, e.noConnection);
-        if (err instanceof Anthropic.APIError) {
-          console.error("Claude API error", err.status, err.message);
+        if (err instanceof OpenAI.AuthenticationError) return error(503, e.badKey);
+        if (err instanceof OpenAI.RateLimitError) return error(429, e.rateLimit);
+        if (err instanceof OpenAI.APIConnectionError) return error(502, e.noConnection);
+        if (err instanceof LengthFinishReasonError) return error(502, e.incomplete);
+        if (err instanceof OpenAI.APIError) {
+          console.error("OpenAI API error", err.status, err.message);
           return error(502, e.serviceError);
         }
         throw err;
